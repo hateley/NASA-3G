@@ -14,7 +14,7 @@ apt-get update
 apt-get -y upgrade
 
 #get other necessary software
-apt-get -y install python-dev unzip python-pip fastqc wget screen default-jre
+apt-get -y install python-dev unzip python-pip fastqc wget screen default-jre samtools
 
 #mount the hard drive
 df -h
@@ -104,11 +104,7 @@ bowtie2-build --offrate 1 ../references/dmel-all-transcript-r6.02.fasta dmel-all
 #-t to show the time
 #--un-gz to output unmapped reads for later processing
 #-p 8 to use 8 threads
-bowtie2 -p 8 -t -q -a --un-gz unmapped.fastq.gz \
-	-x ~/references/bt2build/dmel-all-transcript-r6.02 \
-	-1 1GR1_read1_trimmed_paired.fastq.gz -2 1GR1_read2_trimmed_paired.fastq.gz \
-	-U 1GR1_read1_trimmed_unpaired.fastq.gz,1GR1_read2_trimmed_unpaired.fastq.gz \
-	| samtools view -bS - > bt2out.bam
+bowtie2 -p 16 -t -q -a --un-gz unmapped.fastq.gz -x dmel-all-transcript-r6.02 -1 ../trimming/1GR1_read1_trimmed_paired.fastq.gz -2 ../trimming/1GR1_read2_trimmed_paired.fastq.gz -U ../trimming/1GR1_read1_trimmed_unpaired.fastq.gz,../trimming/1GR1_read2_trimmed_unpaired.fastq.gz | samtools view -Sb - > bt2out.bam
 
 #estimate abundance with eXpress
 express ~/references/dmel-all-transcript-r6.02.fasta bt2out.bam
@@ -116,11 +112,3 @@ express ~/references/dmel-all-transcript-r6.02.fasta bt2out.bam
 sum transcripts to gene level using TPM * 100(Harold's method)
 DE analysis
 GO analysis
-
-do
-curl -u single-cell:SanDiegoCA    http://bix.ucsd.edu/projects/singlecell/nbt_data/ecoli_mda_lane${i}.fastq.bz2 |bunzip2 - |head -400000 > ecoli_mda_lane${i}.fastq
-bwa index sequence.fasta
-bwa aln sequence.fasta ecoli_mda_lane${i}.fastq >ecoli_lane${i}.sai
-bwa samse sequence.fasta ecoli_lane${i}.sai ecoli_mda_lane${i}.fastq > ecoli_lane${i}.sam
-python ./sam-scan-errhist.py -o sam-scan-errhist_ecoli_lane${i}.out sequence.fasta ecoli_lane${i}.sam
-done
