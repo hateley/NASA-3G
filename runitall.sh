@@ -5,8 +5,9 @@ and calculates differential expression.
 """
 
 #make it so this can all be done in an Amazon AWS instance
-
-
+#add commands that output read number and other various stats across processes
+#into an output file for review later.
+#I need to check versions so that I can get the exact results out that I did before
 
 #update software
 sudo bash
@@ -18,8 +19,8 @@ apt-get -y install python-dev unzip python-pip fastqc wget screen default-jre sa
 
 #mount the hard drive
 df -h
-mkfs -t ext4 /dev/xvdb
-mount /dev/xvdb /mnt
+mkfs -t ext4 /dev/xvda1
+mount /dev/xvda1 /mnt
 chown -R ubuntu:ubuntu /mnt
 df -h
 
@@ -33,18 +34,18 @@ make
 cp fastq_illumina_filter /usr/local/bin
 cd
 #trimmomatic
-wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.33.zip
-unzip Trimmomatic-0.33.zip
-cd Trimmomatic-0.33
-chmod +x trimmomatic-0.33.jar
+wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.30.zip
+unzip Trimmomatic-0.30.zip
+cd Trimmomatic-0.30
+chmod +x trimmomatic-0.30.jar
 cd
 #bowtie2 version2.1.0
-apt-get install bowtie2
+wget http://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.1.0/bowtie2-2.1.0-linux-x86_64.zip
+unzip bowtie2-2.1.0-linux-x86_64.zip
 #eXpress get version eXpress 1.5.0
 wget http://bio.math.berkeley.edu/eXpress/downloads/express-1.5.1/express-1.5.1-linux_x86_64.tgz
 tar -zxvf express-1.5.1-linux_x86_64.tgz
 mv express-1.5.1-linux_x86_64 /usr/bin/express-1.5.1-linux_x86_64
-
 
 #make directories for data
 cd /mnt
@@ -76,12 +77,12 @@ cd ..
 #Trim reads with Trimmomatic
 mkdir trimming
 cd trimming
-cp ~/Trimmomatic-0.33/adapters/TruSeq3-PE.fa ./.
-java -jar $HOME/Trimmomatic-0.33/trimmomatic-0.33.jar PE \
+#will have custom adapter sequences in github pull 
+java -jar $HOME/Trimmomatic-0.33/trimmomatic-0.30.jar PE \
 -phred33 ../references/1GR1_read1_filtered.fastq ../references/1GR1_read2_filtered.fastq \
 1GR1_read1_trimmed_paired.fastq.gz 1GR1_read1_trimmed_unpaired.fastq.gz \
 1GR1_read2_trimmed_paired.fastq.gz 1GR1_read2_trimmed_unpaired.fastq.gz \
-ILLUMINACLIP:TruSeq3-PE.fa:2:30:10:8:TRUE TRAILING:20 MINLEN:35
+ILLUMINACLIP:TruSeq3custom-PE.fa:2:30:10:8:TRUE TRAILING:20 MINLEN:35
 
 #create FastQC reports
 fastqc ../trimming/1GR1_read1_trimmed_paired.fastq.gz
@@ -91,6 +92,8 @@ mkdir fastqc
 cd fastqc
 mv ../trimming/*fastqc* ./.
 cd ..
+
+#khmer and jellyfish QC here
 
 #build Bowtie2 reference
 mkdir bt2
@@ -105,10 +108,16 @@ bowtie2-build --offrate 1 ../references/dmel-all-transcript-r6.02.fasta dmel-all
 #--un-gz to output unmapped reads for later processing
 #-p 8 to use 8 threads
 bowtie2 -p 16 -t -q -a --un-gz unmapped.fastq.gz -x dmel-all-transcript-r6.02 -1 ../trimming/1GR1_read1_trimmed_paired.fastq.gz -2 ../trimming/1GR1_read2_trimmed_paired.fastq.gz -U ../trimming/1GR1_read1_trimmed_unpaired.fastq.gz,../trimming/1GR1_read2_trimmed_unpaired.fastq.gz | samtools view -Sb - > bt2out.bam
+cd ..
 
 #estimate abundance with eXpress
-express ~/references/dmel-all-transcript-r6.02.fasta bt2out.bam
+mkdir express
+cd express
+/usr/bin/express-1.5.1-linux_x86_64/express /mnt/references/dmel-all-transcript-r6.02.fasta ../bt2/bt2out.bam
 
-sum transcripts to gene level using TPM * 100(Harold's method)
+#combine expression counts from all samples and get ready for input in DESeq2
+#sum transcripts to gene level using TPM * 100(Harold's method)
+#build my spreadsheet
+#first I'll just use my old spreadsheet for easiness.
 DE analysis
 GO analysis
